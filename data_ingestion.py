@@ -2,83 +2,103 @@ import dlt
 import pandas as pd
 import os
 import chardet
-import re
 from pathlib import Path
 
+# Explicit 21-column mapping based on Rioja Parameter/Function matrix
+# This ensures consistency across all 23 stations
+CLIMATE_COLUMNS = [
+    "date", 
+    "t_med", "t_max", "t_min",           # Temperature (Med/Max/Min)
+    "hr_med", "hr_max", "hr_min",         # Humidity (Med/Max/Min)
+    "rg_ac",                              # Accumulated Radiation
+    "vv_ms_med", "vv_ms_max",             # Wind Speed m/s (Med/Max)
+    "vv_kmh_med", "vv_kmh_max",           # Wind Speed km/h (Med/Max)
+    "dv_deg_med", "dv_deg_max",           # Wind Direction (Med/Max)
+    "p_ac",                               # Accumulated Precipitation
+    "eto_calc",                           # Reference Evapotranspiration
+    "ts_med", "ts_max", "ts_min",         # Soil Temperature (Med/Max/Min)
+    "humh_1_ac", "humh_2_ac"              # Leaf Wetness (Acumulado)
+]
+
 def detect_encoding(file_path):
-    """Detects the character encoding of a file (UTF-8, ISO-8859-1, etc.)"""
+    """Detects file encoding (usually Latin-1 for Spanish exports)"""
     with open(file_path, 'rb') as f:
         rawdata = f.read(10000)
         result = chardet.detect(rawdata)
         return result['encoding'] or 'utf-8'
 
-def build_table_name(station_name):
-    """Build a safe table name for each station/file."""
-    cleaned = re.sub(r"[^a-zA-Z0-9_]+", "_", station_name.strip().lower())
-    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
-    if not cleaned:
-        cleaned = "unknown_station"
-    if cleaned[0].isdigit():
-        cleaned = f"station_{cleaned}"
-    return f"climate_{cleaned}_raw"
 
-def stream_rioja_csvs(data_directory):
+@dlt.resource(write_disposition="replace")
+def climate_stations_resource(data_directory):
     """
-    Generator that processes each CSV file in the directory.
+    Processes the 23 climate station files.
+    Skips the matrix headers and applies explicit naming.
     """
-    path = Path(data_directory)
+    path = Path(data_directory) / "climate_stations"
     
-    # Recursively find all .csv files
-    for csv_file in path.rglob("*.csv"):
-        print(f">>> Processing: {csv_file.name}")
-        
-        # 1. Get the right encoding
+    for csv_file in path.glob("*.csv"):
+        print(f">>> [BATCH] Ingesting Station: {csv_file.name}")
         encoding = detect_encoding(csv_file)
         
-        # 2. Read the CSV
-        # skiprows=0 as your files seem to have a header on line 1 
-        # decimal=',' is crucial for Spanish numeric formats (e.g. 8,1)
         try:
+            # skiprows=3 drops the Metadata, Parameter, and Function rows
             df = pd.read_csv(
                 csv_file, 
                 encoding=encoding, 
-                sep=',', 
-                quotechar='"',
-                decimal=',',
-                on_bad_lines='warn' # skips and warns about bad lines
+                skiprows=3,          
+                names=CLIMATE_COLUMNS, 
+                decimal=',',        # Fixes "8,1" -> 8.1
+                na_values='-',      # Converts "-" to NULL
+                on_bad_lines='warn'
             )
             
-            # 3. Add metadata for the Data Lake
+            # Type Conversion
+            df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
+            
+            # Metadata for Data Lake tracking
             df['station_name'] = csv_file.stem
             df['ingested_at'] = pd.Timestamp.now()
-            station_table_name = build_table_name(csv_file.stem)
             
-            # Yield as a dlt resource
-            yield dlt.resource(
-                df, 
-                table_name=station_table_name,
-                write_disposition="append" 
-            )
+            # Create a clean table name (e.g., climate_14_logrono_raw)
+            clean_name = csv_file.stem.lower().replace(' ', '_').replace('.', '')
+            table_name = f"climate_{clean_name}_raw"
+            
+            yield dlt.resource(df, table_name=table_name)
+            
         except Exception as e:
             print(f"!!! Error processing {csv_file.name}: {e}")
 
+@dlt.resource(table_name="rioja_wine_history", write_disposition="replace")
+def history_resource(data_directory):
+    """
+    Processes the history/metadata file. 
+    No row skipping required.
+    """
+    history_file = Path(data_directory) / "rioja_history.csv"
+    if history_file.exists():
+        print(f">>> [BATCH] Ingesting History Metadata")
+        df = pd.read_csv(history_file, encoding=detect_encoding(history_file))
+        yield df
+
 def load_data():
-    # Define the pipeline for the Data Lake (GCS)
+    # Initialize dlt pipeline
     pipeline = dlt.pipeline(
         pipeline_name="rioja_wine_pipeline",
-        destination="filesystem",
+        destination="filesystem", # Landing in GCS
         dataset_name="rioja_raw_data",
     )
-
-    # Set the GCS Bucket URL (This can also be set in .dlt/config.toml)
-    # Ensure this matches your Terraform bucket name
+    
+    # Bucket URL (Ensure this matches your Terraform 'bucket_name')
     os.environ["DESTINATION__FILESYSTEM__BUCKET_URL"] = "gs://rioja_wine_lake_raw"
 
-    # Run the pipeline
-    # We use 'parquet' format because it's the most efficient for BigQuery later
-    data_source = stream_rioja_csvs("rioja_data")
-    info = pipeline.run(data_source, loader_file_format="parquet")
+    # Define sources
+    data_source = [
+        climate_stations_resource("rioja_data"),
+        history_resource("rioja_data")
+    ]
     
+    # Run and convert to Parquet for BigQuery efficiency
+    info = pipeline.run(data_source, loader_file_format="parquet")
     print(info)
 
 if __name__ == "__main__":
