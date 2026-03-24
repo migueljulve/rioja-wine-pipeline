@@ -3,45 +3,39 @@ import pandas as pd
 import os
 import chardet
 from pathlib import Path
-from datetime import datetime
 
-# 1. English naming convention for the 21-column matrix
+# Explicit 21-column mapping based on Rioja Parameter/Function matrix
 CLIMATE_COLUMNS = [
     "date", 
-    "temp_avg", "temp_max", "temp_min",
-    "rel_hum_avg", "rel_hum_max", "rel_hum_min",
-    "solar_rad_acc",
-    "wind_speed_ms_avg", "wind_speed_ms_max",
-    "wind_speed_kmh_avg", "wind_speed_kmh_max",
-    "wind_dir_avg", "wind_dir_max",
-    "precip_acc",
-    "eto_penman_monteith",
-    "soil_temp_avg", "soil_temp_max", "soil_temp_min",
-    "leaf_wetness_1", "leaf_wetness_2"
+    "t_med", "t_max", "t_min",           # Temperature (Med/Max/Min)
+    "hr_med", "hr_max", "hr_min",         # Humidity (Med/Max/Min)
+    "rg_ac",                              # Accumulated Radiation
+    "vv_ms_med", "vv_ms_max",             # Wind Speed m/s (Med/Max)
+    "vv_kmh_med", "vv_kmh_max",           # Wind Speed km/h (Med/Max)
+    "dv_deg_med", "dv_deg_max",           # Wind Direction (Med/Max)
+    "p_ac",                               # Accumulated Precipitation
+    "eto_calc",                           # Reference Evapotranspiration
+    "ts_med", "ts_max", "ts_min",         # Soil Temperature (Med/Max/Min)
+    "humh_1_ac", "humh_2_ac"              # Leaf Wetness (Acumulado)
 ]
 
 def detect_encoding(file_path):
-    """Detects file encoding for Spanish exports."""
+    """Detects file encoding (usually Latin-1 for Spanish exports)"""
     with open(file_path, 'rb') as f:
         rawdata = f.read(10000)
         result = chardet.detect(rawdata)
         return result['encoding'] or 'utf-8'
 
-# --- RESOURCE 1: ALL 23 STATIONS INTO ONE TABLE ---
-@dlt.resource(
-    name="weather_stations_raw", # This becomes the table name in BigQuery
-    write_disposition="replace", 
-    primary_key=("date", "station_name")
-)
+@dlt.resource(write_disposition="replace")
 def climate_stations_resource(data_directory):
     """
-    Processes the 23 climate station files and unifies them.
-    All files are yielded into the SAME resource (table).
+    Processes the 23 climate station files.
+    Skips the matrix headers and applies explicit naming.
     """
     path = Path(data_directory) / "climate_stations"
     
     for csv_file in path.glob("*.csv"):
-        print(f">>> [BATCH] Unifying Station: {csv_file.name}")
+        print(f">>> [BATCH] Ingesting Station: {csv_file.name}")
         encoding = detect_encoding(csv_file)
         
         try:
@@ -59,25 +53,26 @@ def climate_stations_resource(data_directory):
             # Type Conversion
             df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
             
-            # Metadata to distinguish stations and track ingestion
+            # Metadata for Data Lake tracking
             df['station_name'] = csv_file.stem
-            df['source_file'] = csv_file.name
-            df['ingested_at'] = datetime.utcnow()
+            df['ingested_at'] = pd.Timestamp.now()
             
-            # Yield the dataframe as a list of dictionaries
-            # Since we removed 'mark.with_table_name', it stays in 'weather_stations_raw'
-            yield df.to_dict(orient='records')
+            # Create a clean table name 
+            clean_name = csv_file.stem.lower().replace(' ', '_').replace('.', '')
+            table_name = f"station_{clean_name}"
+            
+            # THE FIX: Yield the dataframe and mark it with a specific table name.
+            # This allows one resource function to feed multiple tables.
+            yield dlt.mark.with_table_name(df, table_name)
             
         except Exception as e:
             print(f"!!! Error processing {csv_file.name}: {e}")
 
-# --- RESOURCE 2: THE HISTORY/METADATA TABLE ---
-@dlt.resource(
-    name="rioja_wine_history", # This becomes the second table
-    write_disposition="replace"
-)
+@dlt.resource(table_name="rioja_wine_history", write_disposition="replace")
 def history_resource(data_directory):
-    """Processes the history/metadata file."""
+    """
+    Processes the history/metadata file. 
+    """
     history_file = Path(data_directory) / "rioja_history.csv"
     if history_file.exists():
         print(f">>> [BATCH] Ingesting History Metadata")
@@ -87,7 +82,7 @@ def history_resource(data_directory):
 def load_data():
     # Initialize dlt pipeline
     pipeline = dlt.pipeline(
-        pipeline_name="rioja_unified_pipeline",
+        pipeline_name="rioja_wine_pipeline",
         destination="filesystem", # Landing in GCS
         dataset_name="rioja_raw_data",
     )
@@ -95,13 +90,13 @@ def load_data():
     # Bucket URL
     os.environ["DESTINATION__FILESYSTEM__BUCKET_URL"] = "gs://rioja_wine_lake_raw"
 
-    # Define the two unified sources
+    # Define sources
     data_source = [
         climate_stations_resource("rioja_data"),
         history_resource("rioja_data")
     ]
     
-    # Run and convert to Parquet
+    # Run and convert to Parquet for BigQuery efficiency
     info = pipeline.run(data_source, loader_file_format="parquet")
     print(info)
 
