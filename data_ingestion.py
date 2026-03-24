@@ -5,7 +5,6 @@ import chardet
 from pathlib import Path
 
 # Explicit 21-column mapping based on Rioja Parameter/Function matrix
-# This ensures consistency across all 23 stations
 CLIMATE_COLUMNS = [
     "date", 
     "t_med", "t_max", "t_min",           # Temperature (Med/Max/Min)
@@ -27,7 +26,6 @@ def detect_encoding(file_path):
         result = chardet.detect(rawdata)
         return result['encoding'] or 'utf-8'
 
-
 @dlt.resource(write_disposition="replace")
 def climate_stations_resource(data_directory):
     """
@@ -47,8 +45,8 @@ def climate_stations_resource(data_directory):
                 encoding=encoding, 
                 skiprows=3,          
                 names=CLIMATE_COLUMNS, 
-                decimal=',',        # Fixes "8,1" -> 8.1
-                na_values='-',      # Converts "-" to NULL
+                decimal=',',        
+                na_values='-',      
                 on_bad_lines='warn'
             )
             
@@ -59,11 +57,13 @@ def climate_stations_resource(data_directory):
             df['station_name'] = csv_file.stem
             df['ingested_at'] = pd.Timestamp.now()
             
-            # Create a clean table name (e.g., climate_14_logrono_raw)
+            # Create a clean table name 
             clean_name = csv_file.stem.lower().replace(' ', '_').replace('.', '')
-            table_name = f"climate_{clean_name}_raw"
+            table_name = f"station_{clean_name}"
             
-            yield dlt.resource(df, table_name=table_name)
+            # THE FIX: Yield the dataframe and mark it with a specific table name.
+            # This allows one resource function to feed multiple tables.
+            yield dlt.mark.with_table_name(df, table_name)
             
         except Exception as e:
             print(f"!!! Error processing {csv_file.name}: {e}")
@@ -72,7 +72,6 @@ def climate_stations_resource(data_directory):
 def history_resource(data_directory):
     """
     Processes the history/metadata file. 
-    No row skipping required.
     """
     history_file = Path(data_directory) / "rioja_history.csv"
     if history_file.exists():
@@ -88,7 +87,7 @@ def load_data():
         dataset_name="rioja_raw_data",
     )
     
-    # Bucket URL (Ensure this matches your Terraform 'bucket_name')
+    # Bucket URL
     os.environ["DESTINATION__FILESYSTEM__BUCKET_URL"] = "gs://rioja_wine_lake_raw"
 
     # Define sources

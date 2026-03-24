@@ -1,4 +1,11 @@
 *.json
+.env
+terraform/.terraform/
+terraform/*.tfstate*
+__pycache__/
+.venv/
+terraform/.terraform.lock.hcl
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

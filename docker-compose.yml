@@ -1,0 +1,33 @@
+services:
+  rioja_ingest:
+    # 1. Look for the Dockerfile in the current directory to build the image
+    build: .
+    
+    # 2. Tag the image and name the container for easy identification
+    image: rioja-wine-ingest:latest
+    container_name: rioja_ingest_container
+    
+    # 3. The "Bridge" logic:
+    volumes:
+      # Map the current VM folder (.) to /app inside the container.
+      # This allows you to edit code locally and see changes instantly.
+      - .:/app
+
+      # THE MAGIC LINE: This is an "Anonymous Volume".
+      # It tells Docker: "I know I just mapped the host folder to /app, 
+      # but DO NOT overwrite the /app/.venv folder that we built during 
+      # the Dockerfile process." This keeps your libraries (dlt, pandas) alive.
+      - /app/.venv
+
+      # Map your local 'keys' folder to the internal '/app/keys' path.
+      - ./keys:/app/keys
+    
+    # 4. Inject Environment Variables:
+    environment:
+      # Tell the Google Cloud SDK where to find your service account key.
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/keys/credentials.json
+    
+    # 5. Terminal settings:
+    # Allows you to see the colored logs and interact with the process.
+    stdin_open: true
+    tty: true
