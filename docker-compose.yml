@@ -1,33 +1,85 @@
 services:
+  # --- INGESTION WORKER (Standalone) ---
   rioja_ingest:
-    # 1. Look for the Dockerfile in the current directory to build the image
     build: .
-    
-    # 2. Tag the image and name the container for easy identification
-    image: rioja-wine-ingest:latest
+    image: rioja-airflow-custom:v1
     container_name: rioja_ingest_container
-    
-    # 3. The "Bridge" logic:
+    profiles: ["manual"] 
     volumes:
-      # Map the current VM folder (.) to /app inside the container.
-      # This allows you to edit code locally and see changes instantly.
       - .:/app
-
-      # THE MAGIC LINE: This is an "Anonymous Volume".
-      # It tells Docker: "I know I just mapped the host folder to /app, 
-      # but DO NOT overwrite the /app/.venv folder that we built during 
-      # the Dockerfile process." This keeps your libraries (dlt, pandas) alive.
       - /app/.venv
-
-      # Map your local 'keys' folder to the internal '/app/keys' path.
       - ./keys:/app/keys
-    
-    # 4. Inject Environment Variables:
     environment:
-      # Tell the Google Cloud SDK where to find your service account key.
       - GOOGLE_APPLICATION_CREDENTIALS=/app/keys/credentials.json
-    
-    # 5. Terminal settings:
-    # Allows you to see the colored logs and interact with the process.
     stdin_open: true
     tty: true
+
+  # --- METADATA DATABASE ---
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- AIRFLOW WEBSERVER ---
+  airflow-webserver:
+    build: 
+      context: .
+      dockerfile: Dockerfile.airflow
+    image: rioja-airflow-custom:v1
+    depends_on:
+      postgres: { condition: service_healthy }
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./keys:/opt/airflow/keys
+      - .:/opt/airflow/rioja_logic 
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8080:8080"
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - GOOGLE_APPLICATION_CREDENTIALS=/opt/airflow/keys/credentials.json
+    command: webserver
+
+  # --- AIRFLOW SCHEDULER ---
+  airflow-scheduler:
+    build: 
+      context: .
+      dockerfile: Dockerfile.airflow
+    image: rioja-airflow-custom:v1
+    depends_on:
+      postgres: { condition: service_healthy }
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./keys:/opt/airflow/keys
+      - .:/opt/airflow/rioja_logic
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - GOOGLE_APPLICATION_CREDENTIALS=/opt/airflow/keys/credentials.json
+    command: scheduler
+
+  # --- AIRFLOW INIT ---
+  airflow-init:
+    build: 
+      context: .
+      dockerfile: Dockerfile.airflow
+    image: rioja-airflow-custom:v1
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+    command: >
+      bash -c "airflow db init &&
+      airflow users create --username admin --password admin --firstname Rioja --lastname Admin --role Admin --email admin@example.com"

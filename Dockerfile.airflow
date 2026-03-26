@@ -1,0 +1,15 @@
+FROM apache/airflow:2.10.2-python3.12
+
+USER root
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Install everything globally
+COPY pyproject.toml .
+RUN uv pip install --no-cache --system -r pyproject.toml
+
+# Ensure the airflow user owns the working directory
+RUN chown -R airflow: /opt/airflow
+
+USER airflow
+# Force Python to include the global site-packages in its path
+ENV PYTHONPATH="${PYTHONPATH}:/usr/local/lib/python3.12/site-packages"
