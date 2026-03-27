@@ -1,15 +1,22 @@
 FROM apache/airflow:2.10.2-python3.12
 
 USER root
+
+# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install everything globally
+WORKDIR /opt/airflow
 COPY pyproject.toml .
+
+# STEP 1: Install Google providers WITH Airflow constraints
+RUN uv pip install --no-cache --system \
+    "apache-airflow-providers-google" \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.2/constraints-3.12.txt"
+
+# STEP 2: Install DLT and others WITHOUT constraints to allow proper versioning
 RUN uv pip install --no-cache --system -r pyproject.toml
 
-# Ensure the airflow user owns the working directory
-RUN chown -R airflow: /opt/airflow
-
 USER airflow
-# Force Python to include the global site-packages in its path
+
+# Permanent Path Fix: Ensure the airflow user can see the global site-packages
 ENV PYTHONPATH="${PYTHONPATH}:/usr/local/lib/python3.12/site-packages"

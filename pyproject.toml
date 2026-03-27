@@ -5,8 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "chardet>=7.2.0",
-    "charset-normalizer>=3.4.6",
-    "dlt[bigquery,gs]>=1.24.0",
-    "pandas>=3.0.1",
+    "dlt[bigquery,gs]",
+    "pandas",
+    "chardet",
+    "charset-normalizer",
+    "requests"
 ]
