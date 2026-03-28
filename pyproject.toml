@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "dlt[bigquery,gs]",
+    "dbt-bigquery",
     "pandas",
     "chardet",
     "charset-normalizer",

@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: rioja_raw_data
+    database: "project-1314e5d0-dc4a-4a2f-804"
+    schema: rioja_wine_data
+    tables:
+      - name: weather_stations_raw
+      - name: rioja_wine_history

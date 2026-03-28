@@ -27,7 +27,7 @@ RUN uv sync --frozen --no-cache
 RUN mkdir -p /app/keys
 
 # Copy the ingestion script into the container
-COPY data_ingestion.py .
+COPY dlt_data_ingestion.py .
 
 # Define the command to run when the container starts
-ENTRYPOINT ["uv", "run", "python", "data_ingestion.py"]
+ENTRYPOINT ["uv", "run", "python", "dlt_data_ingestion.py"]

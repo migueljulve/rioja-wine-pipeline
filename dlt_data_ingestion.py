@@ -5,6 +5,9 @@ import chardet
 from pathlib import Path
 from datetime import datetime
 
+# Directory next to this module (repo root in Docker: /opt/airflow/rioja_logic)
+DATA_DIR = Path(__file__).resolve().parent / "rioja_data"
+
 # 1. english language re-naming for the df columns
 CLIMATE_COLUMNS = [
     "date", 
@@ -95,10 +98,10 @@ def load_data():
     # Bucket URL
     os.environ["DESTINATION__FILESYSTEM__BUCKET_URL"] = "gs://rioja_wine_lake_raw"
 
-    # Define the two unified sources
+    # Define the two unified sources (absolute path: Airflow CWD is /opt/airflow, not rioja_logic)
     data_source = [
-        climate_stations_resource("rioja_data"),
-        history_resource("rioja_data")
+        climate_stations_resource(DATA_DIR),
+        history_resource(DATA_DIR),
     ]
     
     # Run and convert to Parquet
