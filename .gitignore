@@ -1,3 +1,9 @@
+# dbt logs and compiled files
+rioja_dbt/logs/
+rioja_dbt/target/
+rioja_dbt/dbt_modules/
+rioja_dbt/packages/
+
 *.json
 .env
 terraform/.terraform/

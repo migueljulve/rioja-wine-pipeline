@@ -1,0 +1,12 @@
+rioja_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: project-1314e5d0-dc4a-4a2f-804
+      dataset: rioja_wine_data
+      threads: 4
+      keyfile: /opt/airflow/keys/credentials.json
+      location: US
+      priority: interactive

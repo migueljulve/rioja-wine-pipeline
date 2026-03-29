@@ -1,0 +1,15 @@
+name: 'rioja_dbt'
+version: '1.0.0'
+config-version: 2
+profile: 'rioja_dbt'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+
+models:
+  rioja_dbt:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
