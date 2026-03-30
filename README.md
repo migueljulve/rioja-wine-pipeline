@@ -11,7 +11,7 @@ This project focuses on the intersection of **Viticulture and Climate Change**. 
 ## Data Sources
 
 This project integrates two primary datasets:
-* **Climate Data:** Sourced from **SIAR (Sistema de Información Agroclimática para el Regadío)**. It includes 21 years of daily records (min/max temperature, precipitation,etc) from 22 regional weather stations across the Rioja wine territory.
+* **Climate Data:** Sourced from **SIAR (Sistema de Información Agroclimática para el Regadío)**. It includes 21 years of daily records (min/max temperature, precipitation,etc) from 22 regional weather stations across the Rioja wine territory. Joined and ingested together on the dtl scrypt.
 * **Vintage Quality:** Sourced from **DOCa Rioja** (Consejo Regulador de la Denominación de Origen Calificada Rioja) and historical **Parker Ratings**, providing yield metrics and qualitative scores for each vintage since 2002.
 
 
@@ -30,6 +30,38 @@ The project follows a **Medallion Architecture** managed by a modern data stack:
 * **Transformation:** **dbt (data build tool)** for SQL modeling and business logic.
 * **Visualization:** **Looker Studio** for the final analytical dashboards.
 
+### Docker Architecture & Dual Images
+This project utilizes **two specialized Docker images** to ensure a clear separation of concerns between data processing logic and pipeline orchestration.
+
+**Why two Dockerfiles?**
+Instead of using a monolithic image, I follow a decoupled approach:
+
+**Dockerfile (Data Logic & Processing):**
+
+* Purpose: Contains the core Data Engineering stack (dlt, dbt, pandas).
+
+* Role: Used for local development, testing ingestion scripts (dlt_data_ingestion.py), and running transformation models independently.
+
+* Base: python:3.12-slim for a lightweight, high-performance execution environment.
+
+**Dockerfile.airflow (Orchestration):**
+
+* Purpose: Extends the official apache/airflow image.
+
+* Role: Manages the Airflow Scheduler, Webserver, and Workers.
+
+* Key Integration: Includes the necessary GCP providers and system-level dependencies required to trigger the data logic and manage BigQuery connections from the DAGs.
+
+* This setup ensures that the orchestration layer remains stable while the data processing environment can be updated or scaled independently.
+
+**Orchestration: The docker-compose.yml**
+* The docker-compose.yml file acts as the central orchestrator, defining how the different services interact, share volumes, and connect to the network. Instead of running containers manually, this file allows the entire stack to be launched with a single command: docker-compose up -d.
+
+###  Dependency Management
+I use a **decoupled dependency strategy**:
+
+* **Core Logic (`pyproject.toml`):** Managed by `uv`. It includes `dlt`, `dbt-bigquery`, and `pandas`. This environment is used for local development and data processing tasks.
+* **Orchestration (`Dockerfile.airflow`):** Airflow is managed as part of the infrastructure. We use the official Apache Airflow Docker image to avoid dependency conflicts with the data transformation stack.
 
 ---
 ## Project Structure
@@ -154,7 +186,7 @@ The pipeline is designed to be fully automated.
 #### Airflow Web UI (Visual Monitoring)
 - **Access:** Open the Airflow UI at `http://localhost:8080`, I was running the project in a GCP instance, so I use the external I.P of the instance as 'localhost'
 - **Login:** Default credentials are user: `admin` / password: `admin`.
-- **Unpause the DAG:** Locate the `rioja_wine_elt` DAG and toggle the switch to On.
+- **Unpause the DAG:** Locate the `rioja_ingestion_orchestrator_v11` DAG and toggle the switch to On.
 - **Trigger:** Click the Play button to start the pipeline.
 - **Tip:** Use the Graph View to monitor dlt ingesting the 23 CSV files followed by the dbt transformation models.
 
