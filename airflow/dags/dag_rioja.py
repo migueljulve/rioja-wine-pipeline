@@ -64,7 +64,6 @@ with DAG(
 
     # TASK 4: dbt Transformation (The "T" in ELT)
     # This runs dbt inside the same container environment.
-    # DBT_LOG_PATH/DBT_TARGET_PATH/PYTHONNOUSERSITE come from docker-compose.
     task_dbt_run = BashOperator(
         task_id='dbt_transform_rioja',
         bash_command=f'cd {DBT_PROJECT_DIR} && dbt run --profiles-dir .',

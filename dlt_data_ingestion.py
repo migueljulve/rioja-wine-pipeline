@@ -8,7 +8,7 @@ from datetime import datetime
 # Directory next to this module (repo root in Docker: /opt/airflow/rioja_logic)
 DATA_DIR = Path(__file__).resolve().parent / "rioja_data"
 
-# 1. english language re-naming for the df columns
+# 1. english language re-naming from spanish for the df columns
 CLIMATE_COLUMNS = [
     "date", 
     "temp_avg", "temp_max", "temp_min",
@@ -30,7 +30,7 @@ def detect_encoding(file_path):
         result = chardet.detect(rawdata)
         return result['encoding'] or 'utf-8'
 
-# --- RESOURCE 1: ALL 23 STATIONS/tables INTO ONE TABLE ---
+# RESOURCE 1: ALL 22 STATIONS/tables INTO ONE TABLE 
 @dlt.resource(
     name="weather_stations_raw", # This becomes the table name in BigQuery
     write_disposition="replace", 
