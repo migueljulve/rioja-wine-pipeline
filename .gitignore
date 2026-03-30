@@ -4,6 +4,7 @@ rioja_dbt/target/
 rioja_dbt/dbt_modules/
 rioja_dbt/packages/
 
+logs/
 *.json
 .env
 terraform/.terraform/
