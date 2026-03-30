@@ -4,14 +4,15 @@
 ## Project Description
 This project focuses on the intersection of **Viticulture and Climate Change**. It analyzes over 20 years of daily weather data from the Rioja region (Spain) across 22 data stations to understand how thermal stress (frost and heatwaves) affects wine quality.
 
+**The Problem:** Rioja winemakers face increasing climate volatility. While average temperatures rise, late spring frosts still threaten budding vines.
+**The Solution:** An automated end-to-end pipeline that ingests, transforms, and visualizes daily weather metrics and historical vintage scores to provide actionable climate insights.
+
+
 ## Data Sources
 
 This project integrates two primary datasets:
-* **Climate Data:** Sourced from **SIAR (Sistema de Información Agroclimática para el Regadío)**. It includes 21 years of daily records (min/max temperature, precipitation) from 22 regional weather stations across the Rioja territory.
+* **Climate Data:** Sourced from **SIAR (Sistema de Información Agroclimática para el Regadío)**. It includes 21 years of daily records (min/max temperature, precipitation,etc) from 22 regional weather stations across the Rioja wine territory.
 * **Vintage Quality:** Sourced from **DOCa Rioja** (Consejo Regulador de la Denominación de Origen Calificada Rioja) and historical **Parker Ratings**, providing yield metrics and qualitative scores for each vintage since 2002.
-
-**The Problem:** Rioja winemakers face increasing climate volatility. While average temperatures rise, late spring frosts still threaten budding vines.
-**The Solution:** An automated end-to-end pipeline that ingests, transforms, and visualizes daily weather metrics and historical vintage scores to provide actionable climate insights.
 
 
 ## Architecture
@@ -24,7 +25,7 @@ The project follows a **Medallion Architecture** managed by a modern data stack:
 * **Infrastructure (IaC):** **Terraform** for provisioning Google Cloud Storage and BigQuery.
 * **Orchestration:** **Apache Airflow** (Dockerized) managing the workflow.
 * **Ingestion (ELT):** **dlt (Data Load Tool)** for robust ingestion of 23 CSV sources.
-* **DataLake:** **Google Storage** Google Datalake in GCP.
+* **DataLake:** **Google Storage** (GS) in GCP.
 * **Data Warehouse:** **Google BigQuery** (Storage & Compute).
 * **Transformation:** **dbt (data build tool)** for SQL modeling and business logic.
 * **Visualization:** **Looker Studio** for the final analytical dashboards.
@@ -32,8 +33,8 @@ The project follows a **Medallion Architecture** managed by a modern data stack:
 
 ---
 ## Project Structure
----
-### 📂 Project Structure
+
+
 
 The repository is organized to separate infrastructure, orchestration, and data transformation logic:
 
@@ -90,11 +91,11 @@ Raw data is refined through a tiered modeling approach:
 
 ---
 ##  Dashboard & Key Insights
----
+
  **Thermal Stress Analysis** 
 
 ![Thermal Chart](readme_images/climate_rioja_trends.png) 
-[📊 Access the Dashboard via Looker Studio](https://lookerstudio.google.com/s/jguRo6B6bsg)
+[ Access the Dashboard via Looker Studio](https://lookerstudio.google.com/s/jguRo6B6bsg)
 
 **Vintage Quality (Parker Scale)** |
  ![Quality Pie](readme_images/parker_pie.png) 
@@ -107,7 +108,7 @@ Raw data is refined through a tiered modeling approach:
 
 ---
 ##  How to Reproduce (Step-by-Step)
----
+
 Follow these instructions to replicate the entire pipeline from infrastructure provisioning to final data visualization.
 
 ### 1. Prerequisites
@@ -183,9 +184,9 @@ The current architecture provides a robust foundation for historical analysis. T
 
 #### 2. Machine Learning Pipeline
 By leveraging the cleaned data in BigQuery, we aim to implement the following ML use cases:
-- ** Harvest Date Prediction:** A regression model (e.g., XGBoost or Vertex AI AutoML) to predict the optimal harvest window based on accumulated thermal heat and precipitation patterns.
-- ** Smart Irrigation Profiles:** Using soil sensors and ET0 (Evapotranspiration) data to suggest precise irrigation schedules, optimizing water usage in the vineyards.
-- ** Disease Risk Assessment:** Early warning systems for vineyard diseases (like Mildew or Oidium) based on humidity and temperature thresholds.
+- **Harvest Date Prediction:** A regression model (e.g., XGBoost or Vertex AI AutoML) to predict the optimal harvest window based on accumulated thermal heat and precipitation patterns.
+- **Smart Irrigation Profiles:** Using soil sensors and ET0 (Evapotranspiration) data to suggest precise irrigation schedules, optimizing water usage in the vineyards.
+- **Disease Risk Assessment:** Early warning systems for vineyard diseases (like Mildew or Oidium) based on humidity and temperature thresholds.
 
 #### 3. Advanced Analytics
 - **Vertex AI Integration:** Deploy models directly from the BigQuery environment using BigQuery ML.
