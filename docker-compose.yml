@@ -51,6 +51,9 @@ services:
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - GOOGLE_APPLICATION_CREDENTIALS=/opt/airflow/keys/credentials.json
       - PYTHONPATH=${PYTHONPATH}:/usr/local/lib/python3.12/site-packages
+      - PYTHONNOUSERSITE=1
+      - DBT_LOG_PATH=/tmp/rioja_dbt_logs
+      - DBT_TARGET_PATH=/tmp/rioja_dbt_target
     command: webserver
 
   # --- AIRFLOW SCHEDULER ---
@@ -73,6 +76,9 @@ services:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - GOOGLE_APPLICATION_CREDENTIALS=/opt/airflow/keys/credentials.json
       - PYTHONPATH=${PYTHONPATH}:/usr/local/lib/python3.12/site-packages
+      - PYTHONNOUSERSITE=1
+      - DBT_LOG_PATH=/tmp/rioja_dbt_logs
+      - DBT_TARGET_PATH=/tmp/rioja_dbt_target
     command: scheduler
 
   # --- AIRFLOW INIT ---
