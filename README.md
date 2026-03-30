@@ -33,34 +33,37 @@ The project follows a **Medallion Architecture** managed by a modern data stack:
 ---
 ## Project Structure
 ---
+### 📂 Project Structure
+
 The repository is organized to separate infrastructure, orchestration, and data transformation logic:
 
 ```text
 .
-├── dlt_scripts/              # Ingestion layer using dlt (Python)
-│   ├── rioja_ingestion.py    # Main script to load CSVs to BigQuery
-│   └── requirements.txt      # Dependencies for dlt
-├── images/                   # Documentation assets (Architecture, Charts)
-├── rio_airflow/              # Orchestration layer (Dockerized)
-│   ├── dags/
-│   │   └── rioja_wine_elt.py # Airflow DAG defining the pipeline task flow
-│   ├── Dockerfile            # Custom Airflow image with dlt/dbt installed
-│   └── docker-compose.yaml   # Multi-container setup for the full stack
+├── airflow/                  # Orchestration layer (Airflow configuration)
+│   └── dags/
+│       └── rioja_wine_elt.py # Airflow DAG defining the pipeline task flow
+├── readme_images/            # Documentation assets (Architecture, DAG, Charts)
+├── rioja_data/               # Source dataset (23 CSV files with weather & vintage data)
 ├── rioja_dbt/                # Transformation layer (dbt)
 │   ├── models/
 │   │   ├── staging/          # Silver layer: Cleaning and type casting
 │   │   └── marts/            # Gold layer: fct_weather_trends logic
 │   ├── dbt_project.yml       # dbt configuration
 │   └── packages.yml          # dbt dependencies (dbt_utils)
-├── terraform/                # Infrastructure as Code
+├── terraform/                # Infrastructure as Code (GCP)
 │   ├── main.tf               # GCS and BigQuery resource definitions
 │   └── variables.tf          # GCP Project and Region variables
 ├── .gitignore                # Ensures credentials and local venv are not pushed
-├── Makefile                  # Automation shortcuts (make setup, make run-all)
+├── .python-version           # Managed by uv (e.g., 3.12)
+├── Dockerfile                # Custom image for the pipeline environment
+├── Dockerfile.airflow        # Specialized image for the Airflow services
+├── dlt_data_ingestion.py     # Main ingestion script using dlt (Python)
+├── docker-compose.yml        # Multi-container setup for Airflow, DB, and Workers
+├── pyproject.toml            # Project dependencies and tool configuration (uv)
+├── uv.lock                   # Deterministic lockfile for Python dependencies
 ├── google_credentials.json   # (Local only) GCP Service Account Key
 └── README.md                 # Project documentation
 ```
-
 ##  Data Pipeline Details
 
 ### 1. Orchestration (Apache Airflow)
@@ -91,11 +94,11 @@ Raw data is refined through a tiered modeling approach:
  **Thermal Stress Analysis** 
 
 ![Thermal Chart](readme_images/climate_rioja_trends.png) 
-[ Access the Dashboard via looker studio]([https://lookerstudio.google.com/s/jguRo6B6bsg])
+[📊 Access the Dashboard via Looker Studio](https://lookerstudio.google.com/s/jguRo6B6bsg)
 
 **Vintage Quality (Parker Scale)** |
  ![Quality Pie](readme_images/parker_pie.png) 
- [ Access the Dashboard via looker studio]([https://lookerstudio.google.com/s/h7uvH030hrw])
+ [ Access the Dashboard via looker studio](https://lookerstudio.google.com/s/h7uvH030hrw)
 
 **Key Findings:**
 1.  **Warming Trend:** A clear upward slope in average annual temperatures since 2005.
